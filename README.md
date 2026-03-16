@@ -160,6 +160,28 @@ Sau đó mở `http://localhost:8000`
 
 UI hiện dùng trực tiếp comments scraper thật. Nếu TikTok đổi API hoặc video tắt comment thì kết quả có thể lỗi hoặc rỗng.
 
+## Vercel
+
+Project này đã có sẵn `api/index.py` và `vercel.json` để thử deploy lên Vercel Python runtime.
+
+Chạy local trước:
+
+```bash
+PYTHONPATH=. python3 -m src.webapp
+```
+
+Deploy:
+
+```bash
+npm i -g vercel
+vercel
+```
+
+Lưu ý:
+
+- Vercel deploy được, nhưng scraper kiểu này vẫn có nguy cơ timeout hoặc bị TikTok chặn IP.
+- Nếu dùng production thật, `Google Cloud Run` hoặc `Render` vẫn hợp hơn.
+
 ---
 
 ## FAQs
@@ -230,4 +252,3 @@ In controlled environments, it performs competitively with commercial tools such
 </table>
 
 	
-
