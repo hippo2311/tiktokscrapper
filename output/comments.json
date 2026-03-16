@@ -1,0 +1,16 @@
+{
+  "platform": "tiktok",
+  "scraper_type": "tiktok scraper",
+  "execution_id": "run_2026_03_16_115709",
+  "status": "success",
+  "video_url": "https://www.tiktok.com/@scout2015/video/6718335390845095173",
+  "comments": [
+    {
+      "comment_id": "cmt_001",
+      "text": "This data was captured using a tiktok comments scraper",
+      "likes": 0,
+      "replies": 0,
+      "posted_at": null
+    }
+  ]
+}

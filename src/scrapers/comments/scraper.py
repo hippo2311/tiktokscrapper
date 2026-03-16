@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+from datetime import datetime, timezone
+
 from src.scrapers.base import BaseScraper
 from src.utils.validation import validate_url
 from src.utils.logger import get_logger
@@ -9,26 +12,122 @@ log = get_logger(__name__)
 
 
 class CommentsScraper(BaseScraper):
-    """
-    Skeleton tiktok comments scraper / tiktok comment scraper module.
-    """
+    API_ROOT = "https://www.tiktok.com/api/comment"
+    VIDEO_ID_RE = re.compile(r"/video/(\d+)")
 
     def scrape(self, video_url: str, limit: int = 20) -> dict:
         try:
             video_url = validate_url(video_url)
             limit = max(1, min(int(limit), 200))
 
-            comments = [
-                CommentData(
-                    comment_id="cmt_001",
-                    text="This data was captured using a tiktok comments scraper",
-                    likes=0,
-                    replies=0,
-                    posted_at=None,
-                ).model_dump()
-            ]
+            video_id = self._extract_video_id(video_url)
+            comments = self._fetch_comments(video_id=video_id, limit=limit)
 
-            return self.ok({"video_url": video_url, "comments": comments[:limit]})
+            return self.ok(
+                {
+                    "video_url": video_url,
+                    "video_id": video_id,
+                    "comments": comments,
+                    "collected_count": len(comments),
+                }
+            )
         except Exception as e:
             log.exception("Comments scraping failed")
             return self.fail(str(e), data={"video_url": video_url, "comments": []})
+
+    def _extract_video_id(self, video_url: str) -> str:
+        match = self.VIDEO_ID_RE.search(video_url)
+        if not match:
+            raise ValueError("Could not extract TikTok video id from URL.")
+        return match.group(1)
+
+    def _fetch_comments(self, video_id: str, limit: int) -> list[dict]:
+        collected: list[dict] = []
+        cursor = 0
+
+        while len(collected) < limit:
+            payload = self.http.get_json(
+                f"{self.API_ROOT}/list/?aid=1988&aweme_id={video_id}&count=20&cursor={cursor}"
+            )
+            self._raise_for_status(payload, "comments")
+
+            items = payload.get("comments") or []
+            if not items:
+                break
+
+            for item in items:
+                if len(collected) >= limit:
+                    break
+
+                collected.append(self._map_comment(item))
+
+                reply_total = int(item.get("reply_comment_total") or 0)
+                if reply_total and len(collected) < limit:
+                    replies = self._fetch_replies(
+                        video_id=video_id,
+                        comment_id=str(item.get("cid", "")),
+                        remaining=limit - len(collected),
+                    )
+                    collected.extend(replies)
+
+            if not payload.get("has_more"):
+                break
+
+            cursor = int(payload.get("cursor") or 0)
+
+        return collected[:limit]
+
+    def _fetch_replies(self, video_id: str, comment_id: str, remaining: int) -> list[dict]:
+        replies: list[dict] = []
+        cursor = 0
+
+        while len(replies) < remaining:
+            payload = self.http.get_json(
+                f"{self.API_ROOT}/list/reply/?aid=1988&aweme_id={video_id}&comment_id={comment_id}&count=20&cursor={cursor}"
+            )
+            self._raise_for_status(payload, "replies")
+
+            items = payload.get("comments") or []
+            if not items:
+                break
+
+            for item in items:
+                if len(replies) >= remaining:
+                    break
+                replies.append(self._map_comment(item, is_reply=True, parent_comment_id=comment_id))
+
+            if not payload.get("has_more"):
+                break
+
+            cursor = int(payload.get("cursor") or 0)
+
+        return replies
+
+    def _raise_for_status(self, payload: dict, label: str) -> None:
+        status_code = int(payload.get("status_code") or 0)
+        if status_code != 0:
+            raise RuntimeError(
+                f"TikTok {label} API returned status_code={status_code}: {payload.get('status_msg', '')}"
+            )
+
+    def _map_comment(
+        self, item: dict, *, is_reply: bool = False, parent_comment_id: str | None = None
+    ) -> dict:
+        user = item.get("user") or {}
+        return CommentData(
+            comment_id=str(item.get("cid") or ""),
+            author_username=user.get("unique_id"),
+            author_display_name=user.get("nickname"),
+            text=str(item.get("text") or ""),
+            likes=int(item.get("digg_count") or 0),
+            replies=int(item.get("reply_comment_total") or 0),
+            posted_at=self._to_iso(item.get("create_time")),
+            is_reply=is_reply,
+            parent_comment_id=parent_comment_id,
+        ).model_dump()
+
+    def _to_iso(self, value: int | str | None) -> str | None:
+        if value in (None, ""):
+            return None
+        timestamp = int(value)
+        return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat()

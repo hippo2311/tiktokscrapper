@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TikTok Scraper UI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="panel">
+        <p class="eyebrow">Local Test UI</p>
+        <h1>Test nhanh TikTok comments scraper</h1>
+        <p class="copy">
+          Dán link video TikTok, chọn số lượng comment cần lấy, rồi tải CSV. File sẽ gồm tên người
+          comment, comment ID, nội dung comment, và thời gian comment.
+        </p>
+
+        <form id="export-form" class="form">
+          <label for="video_url">TikTok video URL</label>
+          <input
+            id="video_url"
+            name="video_url"
+            type="url"
+            required
+            placeholder="https://www.tiktok.com/@user/video/1234567890"
+            value="{{ video_url }}"
+          />
+
+          <label for="limit">Limit</label>
+          <input
+            id="limit"
+            name="limit"
+            type="number"
+            min="1"
+            max="200"
+            value="{{ limit }}"
+          />
+
+          <button type="submit">Tải CSV</button>
+        </form>
+
+        <div class="result">
+          <div class="result-head">
+            <strong>Trạng thái:</strong>
+            <span id="status" class="status">Chưa chạy</span>
+          </div>
+          <p class="copy small">
+            Nếu TikTok video đó đang mở comment công khai, trình duyệt sẽ tự tải file CSV xuống.
+          </p>
+        </div>
+      </section>
+    </main>
+    <script>
+      const form = document.getElementById("export-form");
+      const statusNode = document.getElementById("status");
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        statusNode.textContent = "Đang lấy comment...";
+        statusNode.className = "status";
+
+        const formData = new FormData(form);
+
+        try {
+          const response = await fetch("/comments/export", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error?.message || payload.error || "Không export được CSV.");
+          }
+
+          const blob = await response.blob();
+          const fileUrl = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          const fileName =
+            response.headers.get("Content-Disposition")?.match(/filename="(.+)"/)?.[1] ||
+            "tiktok-comments.csv";
+
+          anchor.href = fileUrl;
+          anchor.download = fileName;
+          anchor.click();
+          URL.revokeObjectURL(fileUrl);
+
+          statusNode.textContent = "Đã tải CSV thành công.";
+          statusNode.className = "status status-success";
+        } catch (error) {
+          statusNode.textContent = error.message || "Có lỗi xảy ra.";
+          statusNode.className = "status status-error";
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -139,6 +139,27 @@ The repository follows a clear and maintainable layout:
 
 This structure supports incremental expansion while keeping scraping logic isolated and reusable.
 
+## Comments scraper
+
+Module `comments` hiện lấy dữ liệu thật từ TikTok web comment API:
+
+```bash
+PYTHONPATH=. python3 -m src.main --comments 'https://www.tiktok.com/@user/video/1234567890' --out output/comments.json
+```
+
+## Web UI
+
+Chạy UI local để test nhanh:
+
+```bash
+python3 -m pip install -r requirements.txt -r requirements-dev.txt
+PYTHONPATH=. python3 -m src.webapp
+```
+
+Sau đó mở `http://localhost:8000`
+
+UI hiện dùng trực tiếp comments scraper thật. Nếu TikTok đổi API hoặc video tắt comment thì kết quả có thể lỗi hoặc rỗng.
+
 ---
 
 ## FAQs
@@ -209,6 +230,4 @@ In controlled environments, it performs competitively with commercial tools such
 </table>
 
 	
-
-
 

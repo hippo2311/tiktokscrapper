@@ -1,0 +1,110 @@
+{
+  "platform": "tiktok",
+  "scraper_type": "tiktok scraper",
+  "execution_id": "run_2026_03_16_121041",
+  "status": "success",
+  "video_url": "https://www.tiktok.com/@gracelau2025/video/7615558832424520967?is_from_webapp=1&sender_device=pc",
+  "video_id": "7615558832424520967",
+  "comments": [
+    {
+      "comment_id": "7615839746606891797",
+      "author_username": "aisyah10081983",
+      "author_display_name": "𝓐𝓲𝓼𝔂𝓪𝓱",
+      "text": "thanks 🙏🙏🙏🙏",
+      "likes": 2,
+      "replies": 2,
+      "posted_at": "2026-03-11T03:48:10+00:00",
+      "is_reply": false,
+      "parent_comment_id": null
+    },
+    {
+      "comment_id": "7615840282877379335",
+      "author_username": "gracelau2025",
+      "author_display_name": "Grace Lau",
+      "text": "My pleasure! 😊",
+      "likes": 1,
+      "replies": 0,
+      "posted_at": "2026-03-11T03:50:05+00:00",
+      "is_reply": true,
+      "parent_comment_id": "7615839746606891797"
+    },
+    {
+      "comment_id": "7615840808759018261",
+      "author_username": "aisyah10081983",
+      "author_display_name": "𝓐𝓲𝓼𝔂𝓪𝓱",
+      "text": "so excited for this",
+      "likes": 2,
+      "replies": 0,
+      "posted_at": "2026-03-11T03:52:09+00:00",
+      "is_reply": true,
+      "parent_comment_id": "7615839746606891797"
+    },
+    {
+      "comment_id": "7615588108050219784",
+      "author_username": "gracelau2025",
+      "author_display_name": "Grace Lau",
+      "text": "The fireworks effect from Marina Bay can be seen in my pinned fireworks video 🎆",
+      "likes": 2,
+      "replies": 0,
+      "posted_at": "2026-03-10T11:31:29+00:00",
+      "is_reply": false,
+      "parent_comment_id": null
+    },
+    {
+      "comment_id": "7616282742980592385",
+      "author_username": "aleooo20",
+      "author_display_name": "Mantanmu🥀",
+      "text": "Really??",
+      "likes": 0,
+      "replies": 0,
+      "posted_at": "2026-03-12T08:27:10+00:00",
+      "is_reply": false,
+      "parent_comment_id": null
+    },
+    {
+      "comment_id": "7615910659544892178",
+      "author_username": "amelia__yeo",
+      "author_display_name": "Ameliayeo",
+      "text": "what about monti?",
+      "likes": 0,
+      "replies": 0,
+      "posted_at": "2026-03-11T08:23:15+00:00",
+      "is_reply": false,
+      "parent_comment_id": null
+    },
+    {
+      "comment_id": "7616735615186764562",
+      "author_username": "honjojo8",
+      "author_display_name": "HONJOJO",
+      "text": "any live🤣🤣",
+      "likes": 0,
+      "replies": 0,
+      "posted_at": "2026-03-13T13:44:23+00:00",
+      "is_reply": false,
+      "parent_comment_id": null
+    },
+    {
+      "comment_id": "7616543223637082888",
+      "author_username": "howmayihelpyouleh",
+      "author_display_name": "howmayihelpyouleh",
+      "text": "barrage too far hor",
+      "likes": 1,
+      "replies": 0,
+      "posted_at": "2026-03-13T01:17:54+00:00",
+      "is_reply": false,
+      "parent_comment_id": null
+    },
+    {
+      "comment_id": "7617026151982777096",
+      "author_username": "i.am.anhh",
+      "author_display_name": "Anh Thuy Le",
+      "text": "@Goldfish",
+      "likes": 0,
+      "replies": 0,
+      "posted_at": "2026-03-14T08:31:57+00:00",
+      "is_reply": false,
+      "parent_comment_id": null
+    }
+  ],
+  "collected_count": 9
+}
