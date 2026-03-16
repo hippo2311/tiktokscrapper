@@ -1,17 +1,14 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "functions": {
     "api/index.py": {
-      "runtime": "python3.12",
       "maxDuration": 60,
-      "includeFiles": "templates/**,static/**,src/**"
+      "includeFiles": "templates/**,static/**,src/**",
+      "excludeFiles": "{**/__pycache__/**,output/**,tests/**,.pytest_cache/**}"
     }
   },
   "routes": [
-    {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
     {
       "src": "/(.*)",
       "dest": "/api/index.py"
