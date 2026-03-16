@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from src.scrapers.base import BaseScraper
 from src.utils.validation import validate_url
@@ -14,11 +15,13 @@ log = get_logger(__name__)
 class CommentsScraper(BaseScraper):
     API_ROOT = "https://www.tiktok.com/api/comment"
     VIDEO_ID_RE = re.compile(r"/video/(\d+)")
+    MOBILE_VIDEO_ID_RE = re.compile(r"/v/(\d+)(?:\.html)?")
+    FALLBACK_ID_RE = re.compile(r"(?<!\d)(\d{15,25})(?!\d)")
 
     def scrape(self, video_url: str, limit: int = 20) -> dict:
         try:
             video_url = validate_url(video_url)
-            limit = max(1, min(int(limit), 200))
+            limit = max(1, min(int(limit), 500))
 
             video_id = self._extract_video_id(video_url)
             comments = self._fetch_comments(video_id=video_id, limit=limit)
@@ -36,10 +39,44 @@ class CommentsScraper(BaseScraper):
             return self.fail(str(e), data={"video_url": video_url, "comments": []})
 
     def _extract_video_id(self, video_url: str) -> str:
-        match = self.VIDEO_ID_RE.search(video_url)
-        if not match:
-            raise ValueError("Could not extract TikTok video id from URL.")
-        return match.group(1)
+        candidates = [video_url]
+        resolved = self._resolve_redirect_url(video_url)
+        if resolved and resolved != video_url:
+            candidates.append(resolved)
+
+        for candidate in candidates:
+            match = self.VIDEO_ID_RE.search(candidate)
+            if match:
+                return match.group(1)
+
+            match = self.MOBILE_VIDEO_ID_RE.search(candidate)
+            if match:
+                return match.group(1)
+
+            parsed = urlparse(candidate)
+            segments = [segment for segment in parsed.path.split("/") if segment]
+            for segment in reversed(segments):
+                if segment.isdigit() and len(segment) >= 15:
+                    return segment
+
+            match = self.FALLBACK_ID_RE.search(candidate)
+            if match:
+                return match.group(1)
+
+        raise ValueError("Could not extract TikTok video id from URL.")
+
+    def _resolve_redirect_url(self, video_url: str) -> str | None:
+        try:
+            response = self.http.session.get(
+                video_url,
+                timeout=self.settings.timeout_s,
+                proxies=self.settings.proxies,
+                allow_redirects=True,
+            )
+            response.raise_for_status()
+            return response.url
+        except Exception:
+            return None
 
     def _fetch_comments(self, video_id: str, limit: int) -> list[dict]:
         collected: list[dict] = []

@@ -27,7 +27,7 @@ def export_comments_csv():
     limit_raw = (request.form.get("limit") or "20").strip()
 
     try:
-        limit = max(1, min(int(limit_raw), 200))
+        limit = max(1, min(int(limit_raw), 500))
     except ValueError:
         limit = 20
 
