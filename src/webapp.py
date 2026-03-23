@@ -31,13 +31,16 @@ def export_comments_csv():
     except ValueError:
         limit = 20
 
-    result = CommentsScraper(Settings()).scrape(video_url=video_url, limit=limit)
+    result = CommentsScraper(Settings()).scrape_top_comment_thread(video_url=video_url, limit=limit)
     if result.get("status") != "success":
         return jsonify(result), 400
 
-    csv_content = build_comments_csv(result.get("comments") or [])
+    csv_content = build_comments_csv(
+        top_comment=result.get("top_comment"),
+        subcomments=result.get("subcomments") or [],
+    )
     video_id = result.get("video_id") or "comments"
-    file_name = f"tiktok-comments-{video_id}.csv"
+    file_name = f"tiktok-top-comment-thread-{video_id}.csv"
 
     return Response(
         csv_content,
@@ -48,17 +51,35 @@ def export_comments_csv():
     )
 
 
-def build_comments_csv(comments: list[dict]) -> str:
+def build_comments_csv(top_comment: dict | None, subcomments: list[dict]) -> str:
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["author_username", "comment_id", "comment_text", "posted_at"])
+    writer.writerow(
+        [
+            "row_type",
+            "author_username",
+            "comment_id",
+            "parent_comment_id",
+            "comment_text",
+            "engagement_likes",
+            "posted_at",
+        ]
+    )
 
-    for comment in comments:
+    rows: list[tuple[str, dict]] = []
+    if top_comment:
+        rows.append(("top_comment", top_comment))
+    rows.extend(("subcomment", subcomment) for subcomment in subcomments)
+
+    for row_type, comment in rows:
         writer.writerow(
             [
+                row_type,
                 comment.get("author_username") or "",
                 comment.get("comment_id") or "",
+                comment.get("parent_comment_id") or "",
                 comment.get("text") or "",
+                comment.get("likes") or 0,
                 comment.get("posted_at") or "",
             ]
         )

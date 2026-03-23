@@ -38,6 +38,42 @@ class CommentsScraper(BaseScraper):
             log.exception("Comments scraping failed")
             return self.fail(str(e), data={"video_url": video_url, "comments": []})
 
+    def scrape_top_comment_thread(self, video_url: str, limit: int = 20) -> dict:
+        try:
+            video_url = validate_url(video_url)
+            limit = max(1, min(int(limit), 500))
+
+            video_id = self._extract_video_id(video_url)
+            top_level_comments = self._fetch_top_level_comments(video_id=video_id, limit=limit)
+            top_comment = self._select_top_comment(top_level_comments)
+
+            subcomments: list[dict] = []
+            if top_comment:
+                reply_total = int(top_comment.get("replies") or 0)
+                if reply_total:
+                    subcomments = self._fetch_replies(
+                        video_id=video_id,
+                        comment_id=str(top_comment.get("comment_id") or ""),
+                        remaining=reply_total,
+                    )
+
+            return self.ok(
+                {
+                    "video_url": video_url,
+                    "video_id": video_id,
+                    "top_comment": top_comment,
+                    "subcomments": subcomments,
+                    "scanned_comments": len(top_level_comments),
+                    "collected_count": (1 if top_comment else 0) + len(subcomments),
+                }
+            )
+        except Exception as e:
+            log.exception("Top comment thread scraping failed")
+            return self.fail(
+                str(e),
+                data={"video_url": video_url, "top_comment": None, "subcomments": []},
+            )
+
     def _extract_video_id(self, video_url: str) -> str:
         candidates = [video_url]
         resolved = self._resolve_redirect_url(video_url)
@@ -79,6 +115,27 @@ class CommentsScraper(BaseScraper):
             return None
 
     def _fetch_comments(self, video_id: str, limit: int) -> list[dict]:
+        top_level_comments = self._fetch_top_level_comments(video_id=video_id, limit=limit)
+        collected: list[dict] = []
+
+        for comment in top_level_comments:
+            if len(collected) >= limit:
+                break
+
+            collected.append(comment)
+
+            reply_total = int(comment.get("replies") or 0)
+            if reply_total and len(collected) < limit:
+                replies = self._fetch_replies(
+                    video_id=video_id,
+                    comment_id=str(comment.get("comment_id") or ""),
+                    remaining=limit - len(collected),
+                )
+                collected.extend(replies)
+
+        return collected[:limit]
+
+    def _fetch_top_level_comments(self, video_id: str, limit: int) -> list[dict]:
         collected: list[dict] = []
         cursor = 0
 
@@ -95,17 +152,7 @@ class CommentsScraper(BaseScraper):
             for item in items:
                 if len(collected) >= limit:
                     break
-
                 collected.append(self._map_comment(item))
-
-                reply_total = int(item.get("reply_comment_total") or 0)
-                if reply_total and len(collected) < limit:
-                    replies = self._fetch_replies(
-                        video_id=video_id,
-                        comment_id=str(item.get("cid", "")),
-                        remaining=limit - len(collected),
-                    )
-                    collected.extend(replies)
 
             if not payload.get("has_more"):
                 break
@@ -146,6 +193,18 @@ class CommentsScraper(BaseScraper):
             raise RuntimeError(
                 f"TikTok {label} API returned status_code={status_code}: {payload.get('status_msg', '')}"
             )
+
+    def _select_top_comment(self, comments: list[dict]) -> dict | None:
+        if not comments:
+            return None
+        return max(
+            comments,
+            key=lambda comment: (
+                int(comment.get("likes") or 0),
+                int(comment.get("replies") or 0),
+                str(comment.get("comment_id") or ""),
+            ),
+        )
 
     def _map_comment(
         self, item: dict, *, is_reply: bool = False, parent_comment_id: str | None = None

@@ -12,8 +12,8 @@
         <p class="eyebrow">Local Test UI</p>
         <h1>Test nhanh TikTok comments scraper</h1>
         <p class="copy">
-          Dán link video TikTok, chọn số lượng comment cần lấy, rồi tải CSV. File sẽ gồm tên người
-          comment, comment ID, nội dung comment, và thời gian comment.
+          Dán link video TikTok, chọn số lượng top-level comment cần quét, rồi tải CSV. File sẽ chỉ
+          gồm comment có nhiều like nhất và các sub comment của nó, kèm engagement theo likes.
         </p>
 
         <form id="export-form" class="form">
@@ -78,7 +78,7 @@
           const anchor = document.createElement("a");
           const fileName =
             response.headers.get("Content-Disposition")?.match(/filename="(.+)"/)?.[1] ||
-            "tiktok-comments.csv";
+            "tiktok-top-comment-thread.csv";
 
           anchor.href = fileUrl;
           anchor.download = fileName;
