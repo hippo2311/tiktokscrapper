@@ -14,6 +14,8 @@ log = get_logger(__name__)
 
 class CommentsScraper(BaseScraper):
     API_ROOT = "https://www.tiktok.com/api/comment"
+    DEFAULT_TOP_THREADS = 5
+    MAX_TOP_THREADS = 50
     VIDEO_ID_RE = re.compile(r"/video/(\d+)")
     MOBILE_VIDEO_ID_RE = re.compile(r"/v/(\d+)(?:\.html)?")
     FALLBACK_ID_RE = re.compile(r"(?<!\d)(\d{15,25})(?!\d)")
@@ -38,40 +40,84 @@ class CommentsScraper(BaseScraper):
             log.exception("Comments scraping failed")
             return self.fail(str(e), data={"video_url": video_url, "comments": []})
 
-    def scrape_top_comment_thread(self, video_url: str, limit: int = 20) -> dict:
+    def scrape_top_comment_thread(self, video_url: str, limit: int | None = None) -> dict:
+        result = self.scrape_top_comment_threads(video_url=video_url, limit=limit, top_threads=1)
+        if result.get("status") != "success":
+            return self.fail(
+                result.get("error", {}).get("message", "Unknown error"),
+                data={
+                    "video_url": result.get("video_url"),
+                    "top_comment": None,
+                    "subcomments": [],
+                },
+            )
+
+        comment_threads = result.get("comment_threads") or []
+        first_thread = comment_threads[0] if comment_threads else {}
+        top_comment = first_thread.get("main_comment")
+        subcomments = first_thread.get("subcomments") or []
+
+        return self.ok(
+            {
+                "video_url": result.get("video_url"),
+                "video_id": result.get("video_id"),
+                "top_comment": top_comment,
+                "subcomments": subcomments,
+                "scanned_comments": result.get("scanned_comments") or 0,
+                "collected_count": (1 if top_comment else 0) + len(subcomments),
+            }
+        )
+
+    def scrape_top_comment_threads(
+        self, video_url: str, limit: int | None = None, top_threads: int = DEFAULT_TOP_THREADS
+    ) -> dict:
         try:
             video_url = validate_url(video_url)
-            limit = max(1, min(int(limit), 500))
+            limit = self._normalize_limit(limit)
+            top_threads = max(1, min(int(top_threads), self.MAX_TOP_THREADS))
 
             video_id = self._extract_video_id(video_url)
             top_level_comments = self._fetch_top_level_comments(video_id=video_id, limit=limit)
-            top_comment = self._select_top_comment(top_level_comments)
+            selected_comments = self._select_top_comments(top_level_comments, top_n=top_threads)
 
-            subcomments: list[dict] = []
-            if top_comment:
-                reply_total = int(top_comment.get("replies") or 0)
-                if reply_total:
+            comment_threads: list[dict] = []
+            collected_count = 0
+            for rank, comment in enumerate(selected_comments, start=1):
+                subcomments: list[dict] = []
+                reply_total = int(comment.get("replies") or 0)
+                comment_id = str(comment.get("comment_id") or "")
+
+                if reply_total and comment_id:
                     subcomments = self._fetch_replies(
                         video_id=video_id,
-                        comment_id=str(top_comment.get("comment_id") or ""),
+                        comment_id=comment_id,
                         remaining=reply_total,
                     )
+
+                comment_threads.append(
+                    {
+                        "thread_rank": rank,
+                        "main_comment": comment,
+                        "subcomments": subcomments,
+                    }
+                )
+                collected_count += 1 + len(subcomments)
 
             return self.ok(
                 {
                     "video_url": video_url,
                     "video_id": video_id,
-                    "top_comment": top_comment,
-                    "subcomments": subcomments,
+                    "comment_threads": comment_threads,
                     "scanned_comments": len(top_level_comments),
-                    "collected_count": (1 if top_comment else 0) + len(subcomments),
+                    "selected_main_comments": len(comment_threads),
+                    "collected_count": collected_count,
                 }
             )
         except Exception as e:
-            log.exception("Top comment thread scraping failed")
+            log.exception("Top comment threads scraping failed")
             return self.fail(
                 str(e),
-                data={"video_url": video_url, "top_comment": None, "subcomments": []},
+                data={"video_url": video_url, "comment_threads": []},
             )
 
     def _extract_video_id(self, video_url: str) -> str:
@@ -135,11 +181,11 @@ class CommentsScraper(BaseScraper):
 
         return collected[:limit]
 
-    def _fetch_top_level_comments(self, video_id: str, limit: int) -> list[dict]:
+    def _fetch_top_level_comments(self, video_id: str, limit: int | None) -> list[dict]:
         collected: list[dict] = []
         cursor = 0
 
-        while len(collected) < limit:
+        while limit is None or len(collected) < limit:
             payload = self.http.get_json(
                 f"{self.API_ROOT}/list/?aid=1988&aweme_id={video_id}&count=20&cursor={cursor}"
             )
@@ -150,7 +196,7 @@ class CommentsScraper(BaseScraper):
                 break
 
             for item in items:
-                if len(collected) >= limit:
+                if limit is not None and len(collected) >= limit:
                     break
                 collected.append(self._map_comment(item))
 
@@ -159,7 +205,7 @@ class CommentsScraper(BaseScraper):
 
             cursor = int(payload.get("cursor") or 0)
 
-        return collected[:limit]
+        return collected if limit is None else collected[:limit]
 
     def _fetch_replies(self, video_id: str, comment_id: str, remaining: int) -> list[dict]:
         replies: list[dict] = []
@@ -194,17 +240,28 @@ class CommentsScraper(BaseScraper):
                 f"TikTok {label} API returned status_code={status_code}: {payload.get('status_msg', '')}"
             )
 
-    def _select_top_comment(self, comments: list[dict]) -> dict | None:
-        if not comments:
+    def _normalize_limit(self, limit: int | None) -> int | None:
+        if limit in (None, ""):
             return None
-        return max(
+        return max(1, min(int(limit), 500))
+
+    def _select_top_comment(self, comments: list[dict]) -> dict | None:
+        top_comments = self._select_top_comments(comments, top_n=1)
+        return top_comments[0] if top_comments else None
+
+    def _select_top_comments(self, comments: list[dict], top_n: int) -> list[dict]:
+        if not comments or top_n <= 0:
+            return []
+
+        return sorted(
             comments,
             key=lambda comment: (
                 int(comment.get("likes") or 0),
                 int(comment.get("replies") or 0),
                 str(comment.get("comment_id") or ""),
             ),
-        )
+            reverse=True,
+        )[:top_n]
 
     def _map_comment(
         self, item: dict, *, is_reply: bool = False, parent_comment_id: str | None = None

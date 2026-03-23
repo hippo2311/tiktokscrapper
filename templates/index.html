@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,10 +10,10 @@
     <main class="page">
       <section class="panel">
         <p class="eyebrow">Local Test UI</p>
-        <h1>Test nhanh TikTok comments scraper</h1>
+        <h1>TikTok Comments Scraper</h1>
         <p class="copy">
-          Dán link video TikTok, chọn số lượng top-level comment cần quét, rồi tải CSV. File sẽ chỉ
-          gồm comment có nhiều like nhất và các sub comment của nó, kèm engagement theo likes.
+          Paste a TikTok video URL, scan all top-level comments on the video, select how many
+          highest-liked main comments to return, and download the CSV with each thread's replies.
         </p>
 
         <form id="export-form" class="form">
@@ -27,26 +27,27 @@
             value="{{ video_url }}"
           />
 
-          <label for="limit">Limit</label>
+          <label for="top_threads">Top Main Comments</label>
           <input
-            id="limit"
-            name="limit"
+            id="top_threads"
+            name="top_threads"
             type="number"
             min="1"
-            max="500"
-            value="{{ limit }}"
+            max="{{ max_top_threads }}"
+            value="{{ top_threads }}"
           />
 
-          <button type="submit">Tải CSV</button>
+          <button type="submit">Download CSV</button>
         </form>
 
         <div class="result">
           <div class="result-head">
-            <strong>Trạng thái:</strong>
-            <span id="status" class="status">Chưa chạy</span>
+            <strong>Status:</strong>
+            <span id="status" class="status">Idle</span>
           </div>
           <p class="copy small">
-            Nếu TikTok video đó đang mở comment công khai, trình duyệt sẽ tự tải file CSV xuống.
+            If the video has public comments enabled, your browser will download the CSV
+            automatically.
           </p>
         </div>
       </section>
@@ -57,7 +58,7 @@
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        statusNode.textContent = "Đang lấy comment...";
+        statusNode.textContent = "Fetching comments...";
         statusNode.className = "status";
 
         const formData = new FormData(form);
@@ -70,7 +71,7 @@
 
           if (!response.ok) {
             const payload = await response.json().catch(() => ({}));
-            throw new Error(payload.error?.message || payload.error || "Không export được CSV.");
+            throw new Error(payload.error?.message || payload.error || "Could not export the CSV.");
           }
 
           const blob = await response.blob();
@@ -78,17 +79,17 @@
           const anchor = document.createElement("a");
           const fileName =
             response.headers.get("Content-Disposition")?.match(/filename="(.+)"/)?.[1] ||
-            "tiktok-top-comment-thread.csv";
+            "tiktok-top-comment-threads.csv";
 
           anchor.href = fileUrl;
           anchor.download = fileName;
           anchor.click();
           URL.revokeObjectURL(fileUrl);
 
-          statusNode.textContent = "Đã tải CSV thành công.";
+          statusNode.textContent = "CSV downloaded successfully.";
           statusNode.className = "status status-success";
         } catch (error) {
-          statusNode.textContent = error.message || "Có lỗi xảy ra.";
+          statusNode.textContent = error.message || "Something went wrong.";
           statusNode.className = "status status-error";
         }
       });

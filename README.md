@@ -141,7 +141,7 @@ This structure supports incremental expansion while keeping scraping logic isola
 
 ## Comments scraper
 
-Module `comments` hiện lấy dữ liệu thật từ TikTok web comment API:
+The `comments` module currently pulls real data from the TikTok web comment API:
 
 ```bash
 PYTHONPATH=. python3 -m src.main --comments 'https://www.tiktok.com/@user/video/1234567890' --out output/comments.json
@@ -149,22 +149,23 @@ PYTHONPATH=. python3 -m src.main --comments 'https://www.tiktok.com/@user/video/
 
 ## Web UI
 
-Chạy UI local để test nhanh:
+Run the local UI for quick testing:
 
 ```bash
 python3 -m pip install -r requirements.txt -r requirements-dev.txt
 PYTHONPATH=. python3 -m src.webapp
 ```
 
-Sau đó mở `http://localhost:8000`
+Then open `http://localhost:8000`
 
-UI hiện dùng trực tiếp comments scraper thật. Nếu TikTok đổi API hoặc video tắt comment thì kết quả có thể lỗi hoặc rỗng.
+The UI uses the live comments scraper directly. If TikTok changes the API or comments are disabled on the video, results may fail or come back empty.
+CSV export scans all available top-level comments on the video, then selects the highest-liked main comments based on the chosen `top_threads` value and fetches all subcomments for each thread.
 
 ## Vercel
 
-Project này đã có sẵn `api/index.py` và `vercel.json` để thử deploy lên Vercel Python runtime.
+This project already includes `api/index.py` and `vercel.json` for testing deployment on the Vercel Python runtime.
 
-Chạy local trước:
+Run locally first:
 
 ```bash
 PYTHONPATH=. python3 -m src.webapp
@@ -177,10 +178,10 @@ npm i -g vercel
 vercel
 ```
 
-Lưu ý:
+Notes:
 
-- Vercel deploy được, nhưng scraper kiểu này vẫn có nguy cơ timeout hoặc bị TikTok chặn IP.
-- Nếu dùng production thật, `Google Cloud Run` hoặc `Render` vẫn hợp hơn.
+- Vercel can deploy it, but this kind of scraper still carries timeout and TikTok IP-blocking risk.
+- For real production usage, `Google Cloud Run` or `Render` is usually a better fit.
 
 ---
 
